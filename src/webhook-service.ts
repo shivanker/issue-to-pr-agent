@@ -1,6 +1,6 @@
-import { createOctokitApp, getRepoInfoFromPayload, getIssueInfoFromPayload, createPullRequest, addIssueComment } from '../utils/github';
+import { createOctokitApp, getRepoInfoFromPayload, getIssueInfoFromPayload, createPullRequest, addIssueComment } from './github';
 import { GitService } from './git-service';
-import { config } from '../config/config';
+import { config } from './config';
 import { defaultChangeImplementer } from './change-implementer';
 
 /**

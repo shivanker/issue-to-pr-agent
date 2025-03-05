@@ -1,11 +1,11 @@
 import { Octokit } from '@octokit/rest';
 import { createAppAuth } from '@octokit/auth-app';
-import { config } from '../config/config';
+import { config } from './config';
 import type {
   RepoInfo,
   IssueInfo,
   PullRequestOptions
-} from '../types';
+} from './types';
 
 /**
  * Creates and returns an authenticated Octokit instance for the GitHub App

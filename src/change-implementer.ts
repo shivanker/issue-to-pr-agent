@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { IssueInfo } from '../types';
+import { IssueInfo } from './types';
 
 /**
  * Default implementation for making changes to a repository based on an issue

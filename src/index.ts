@@ -1,5 +1,5 @@
-import { config } from './config/config';
-import { LambdaEvent, LambdaResponse } from './types';
+import { config } from './config';
+import type { LambdaEvent, LambdaResponse } from './types';
 
 /**
  * Lambda handler function for GitHub webhook events
@@ -68,8 +68,8 @@ export const handler = async (event: LambdaEvent): Promise<LambdaResponse> => {
       }
     }
 
-    // Dynamically import the WebhookService
-    const { WebhookService } = await import('./services/webhook-service');
+    // Dynamic import to avoid top-level await
+    const { WebhookService } = await import('./webhook-service');
     const webhookService = new WebhookService();
 
     // Process the webhook

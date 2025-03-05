@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { simpleGit, SimpleGit } from 'simple-git';
-import { config } from '../config/config';
-import { RepoInfo, IssueInfo, ChangeImplementer } from '../types';
+import { config } from './config';
+import { RepoInfo, IssueInfo, ChangeImplementer } from './types';
 
 /**
  * Service for handling Git operations
