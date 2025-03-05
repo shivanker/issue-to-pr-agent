@@ -1,0 +1,44 @@
+service: issue-to-pr-agent
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  region: ${opt:region, self:custom.defaultRegion}
+  memorySize: 256
+  timeout: 30
+  logRetentionInDays: 14
+  environment:
+    GITHUB_APP_ID: ${env:GITHUB_APP_ID}
+    GITHUB_PRIVATE_KEY: ${env:GITHUB_PRIVATE_KEY}
+    GITHUB_WEBHOOK_SECRET: ${env:GITHUB_WEBHOOK_SECRET}
+    AWS_REGION: ${self:provider.region}
+
+custom:
+  defaultRegion: us-east-1
+
+functions:
+  webhook:
+    handler: dist/index.handler
+    events:
+      - httpApi:
+          path: /webhook
+          method: post
+    url: true
+
+package:
+  patterns:
+    - '!node_modules/**'
+    - '!src/**'
+    - 'dist/**'
+    - '!.gitignore'
+    - '!.git/**'
+    - '!serverless.yml'
+    - '!tsconfig.json'
+    - '!README.md'
+    - '!package-lock.json'
+    - '!package.json'
+
+plugins:
+  - serverless-offline

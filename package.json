@@ -1,0 +1,32 @@
+{
+  "name": "issue-to-pr-agent",
+  "version": "1.0.0",
+  "description": "GitHub app that listens to new Issues and creates PRs with changes",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node16 --outfile=dist/index.js --external:aws-sdk",
+    "build:dev": "tsc",
+    "watch": "tsc -w",
+    "start": "serverless offline",
+    "deploy": "npm run build && serverless deploy",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["github", "app", "lambda", "aws", "issue", "pr"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.147",
+    "@types/node": "^22.13.9",
+    "esbuild": "^0.25.0",
+    "serverless": "^3.38.0",
+    "serverless-offline": "^13.3.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@octokit/auth-app": "^7.1.5",
+    "@octokit/rest": "^21.1.1",
+    "@octokit/webhooks": "^13.7.4",
+    "simple-git": "^3.27.0"
+  }
+}
