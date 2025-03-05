@@ -1,0 +1,42 @@
+{
+  "name": "issue-to-pr-agent",
+  "version": "1.0.0",
+  "description": "GitHub App that creates pull requests in response to new issues",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:aws-sdk",
+    "dev": "tsc -w",
+    "clean": "rm -rf dist",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "npm run build && aws lambda update-function-code --function-name issue-to-pr-agent --zip-file fileb://dist/lambda-package.zip",
+    "package": "npm run build && cd dist && zip -r lambda-package.zip ."
+  },
+  "keywords": [
+    "github",
+    "github-app",
+    "aws-lambda",
+    "pull-request",
+    "automation"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@octokit/webhooks-types": "^7.6.1",
+    "@types/node": "^22.13.9",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@aws-cdk/aws-lambda": "^1.19.0",
+    "@aws-sdk/client-lambda": "^3.758.0",
+    "@octokit/rest": "^21.1.1",
+    "@octokit/webhooks": "^13.7.4",
+    "@octokit/webhooks-methods": "^5.1.1",
+    "octokit": "^4.1.2",
+    "simple-git": "^3.27.0"
+  }
+}
