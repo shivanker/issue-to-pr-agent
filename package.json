@@ -10,7 +10,9 @@
     "lint": "eslint 'src/**/*.ts'",
     "test": "echo \"Error: no test specified\" && exit 1",
     "deploy": "npm run build && aws lambda update-function-code --function-name issue-to-pr-agent --zip-file fileb://dist/lambda-package.zip",
-    "package": "npm run build && cd dist && zip -r lambda-package.zip ."
+    "package": "npm run build && cd dist && zip -r lambda-package.zip .",
+    "test:local": "ts-node src/local-test.ts",
+    "webhook": "ts-node src/webhook-server.ts"
   },
   "keywords": [
     "github",
@@ -28,6 +30,7 @@
     "@octokit/webhooks-types": "^7.6.1",
     "@types/node": "^22.13.9",
     "esbuild": "^0.25.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   },
   "dependencies": {
@@ -36,6 +39,9 @@
     "@octokit/rest": "^21.1.1",
     "@octokit/webhooks": "^13.7.4",
     "@octokit/webhooks-methods": "^5.1.1",
+    "@types/express": "^5.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "octokit": "^4.1.2",
     "simple-git": "^3.27.0"
   }
