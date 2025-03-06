@@ -16,5 +16,9 @@ RUN npm ci
 # Build the TypeScript code
 RUN npm run build
 
+# Create a JavaScript file at the root that redirects to the handler
+# This fixes the "Cannot find module 'index'" error in Node 20+
+RUN echo "module.exports = require('./dist/index.js');" > index.js
+
 # Set the Lambda handler
 CMD [ "index.handler" ]

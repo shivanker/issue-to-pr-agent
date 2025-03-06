@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "GitHub App that creates pull requests in response to new issues",
   "main": "dist/index.js",
+  "type": "commonjs",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:aws-sdk",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:aws-sdk --format=cjs",
     "dev": "tsc -w",
     "clean": "rm -rf dist",
     "lint": "eslint 'src/**/*.ts'",
