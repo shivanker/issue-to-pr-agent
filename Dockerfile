@@ -7,7 +7,7 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 COPY package.json package-lock.json ./
 
 # Install production dependencies only
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copy source code
 COPY tsconfig.json ./
