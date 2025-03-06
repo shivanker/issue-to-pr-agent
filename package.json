@@ -4,7 +4,7 @@
   "description": "GitHub App that creates pull requests in response to new issues",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:aws-sdk",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --external:aws-sdk",
     "dev": "tsc -w",
     "clean": "rm -rf dist",
     "lint": "eslint 'src/**/*.ts'",
@@ -24,7 +24,7 @@
   "author": "",
   "license": "ISC",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "devDependencies": {
     "@octokit/webhooks-types": "^7.6.1",
