@@ -76,8 +76,24 @@ export class GitService {
   async commitChanges(changedFiles: string[]): Promise<void> {
     console.log(`Committing changes to ${changedFiles.length} files`);
 
-    // Add all changed files
-    await this.git.add(changedFiles);
+    // Filter out files that no longer exist
+    const existingFiles = changedFiles.filter(file =>
+        fs.existsSync(path.join(this.repoDir, file))
+    );
+
+    const deletedFiles = changedFiles.filter(file =>
+        !fs.existsSync(path.join(this.repoDir, file))
+    );
+
+    // Add modified and new files
+    if (existingFiles.length > 0) {
+        await this.git.add(existingFiles);
+    }
+
+    // Handle deleted files
+    if (deletedFiles.length > 0) {
+        await this.git.rm(deletedFiles);
+    }
 
     // Create a commit with a message referencing the issue
     const commitMessage = `${config.app.defaultCommitMsg} #${this.issueInfo.number}`;
