@@ -49,8 +49,7 @@ export const handler = async (event: LambdaEvent): Promise<LambdaResponse> => {
             };
           }
 
-          // In a real implementation, you would verify the signature here
-          // For simplicity, we're skipping the actual verification
+          // TODO: verify the signature here
           console.log('Webhook signature verification skipped for development');
         } catch (error) {
           console.error('Webhook signature verification failed:', error);
