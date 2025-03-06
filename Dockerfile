@@ -6,12 +6,12 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install production dependencies only
-RUN npm ci
-
 # Copy source code
 COPY tsconfig.json ./
 COPY src/ ./src/
+
+# Install production dependencies only
+RUN npm ci
 
 # Build the TypeScript code
 RUN npm run build
