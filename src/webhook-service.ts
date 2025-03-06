@@ -72,6 +72,7 @@ export class WebhookService {
           return;
         }
 
+        // TODO: Generate commit message & PR title/body automatically
         // Commit the changes
         await gitService.commitChanges(changedFiles);
 
