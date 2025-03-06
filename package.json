@@ -39,6 +39,7 @@
     "@octokit/webhooks": "^13.7.4",
     "@octokit/webhooks-methods": "^5.1.1",
     "@types/express": "^5.0.0",
+    "aws-xray-sdk": "^3.5.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "octokit": "^4.1.2",

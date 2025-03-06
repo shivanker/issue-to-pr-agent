@@ -1,5 +1,7 @@
 import { config } from './config';
 import type { LambdaEvent, LambdaResponse } from './types';
+// Import AWS X-Ray SDK for Lambda tracing support
+import * as AWSXRay from 'aws-xray-sdk';
 
 /**
  * Lambda handler function for GitHub webhook events
@@ -8,14 +10,27 @@ export const handler = async (event: LambdaEvent): Promise<LambdaResponse> => {
   console.log('Received event:', JSON.stringify(event, null, 2));
 
   try {
+    // Add correlation ID for tracking the request
+    const correlationId = event.headers['x-github-delivery'] ||
+                          event.headers['X-GitHub-Delivery'] ||
+                          `manual-${Date.now()}`;
+
+    console.log(`Processing webhook with correlation ID: ${correlationId}`);
+
     // Get the GitHub event name from the header
     const githubEvent = event.headers['x-github-event'] || event.headers['X-GitHub-Event'];
 
     if (!githubEvent) {
-      console.error('No GitHub event header found');
+      console.error(`[${correlationId}] No GitHub event header found`);
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'No GitHub event header found' }),
+        headers: {
+          'X-Correlation-ID': correlationId
+        },
+        body: JSON.stringify({
+          error: 'No GitHub event header found',
+          correlationId
+        }),
       };
     }
 
@@ -80,12 +95,24 @@ export const handler = async (event: LambdaEvent): Promise<LambdaResponse> => {
       body: JSON.stringify({ message: 'Webhook processed successfully' }),
     };
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    // Get correlation ID if available
+    const correlationId = event.headers['x-github-delivery'] ||
+                          event.headers['X-GitHub-Delivery'] ||
+                          `error-${Date.now()}`;
 
-    // Return an error response
+    console.error(`[${correlationId}] Error processing webhook:`, error);
+
+    // Return an error response with correlation ID
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Error processing webhook' }),
+      headers: {
+        'X-Correlation-ID': correlationId
+      },
+      body: JSON.stringify({
+        error: 'Error processing webhook',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        correlationId
+      }),
     };
   }
 };
