@@ -1,5 +1,8 @@
 FROM public.ecr.aws/lambda/nodejs:22
 
+# Install git and other dependencies
+RUN dnf install -y git
+
 # Create app directory
 WORKDIR ${LAMBDA_TASK_ROOT}
 
