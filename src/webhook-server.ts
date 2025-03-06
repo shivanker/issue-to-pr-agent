@@ -2,7 +2,6 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import { handler } from './index';
 import { LambdaEvent } from './types';
-import { config } from './config';
 
 // Create Express app
 const app = express();
