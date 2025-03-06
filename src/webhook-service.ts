@@ -40,7 +40,7 @@ export class WebhookService {
       const octokit = await createOctokitApp(installationId);
 
       // Create GitService instance
-      const gitService = new GitService(repoInfo, issueInfo);
+      const gitService = new GitService(repoInfo, issueInfo, octokit, installationId);
 
       try {
         // Clone the repository

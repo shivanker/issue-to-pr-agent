@@ -1,11 +1,12 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { simpleGit, SimpleGit } from 'simple-git';
+import fs from 'fs';
+import path from 'path';
+import simpleGit, { SimpleGit } from 'simple-git';
+import { Octokit } from '@octokit/rest';
 import { config } from './config';
 import { RepoInfo, IssueInfo, ChangeImplementer } from './types';
 
 /**
- * Service for handling Git operations
+ * Service for Git operations
  */
 export class GitService {
   private git: SimpleGit;
@@ -13,15 +14,26 @@ export class GitService {
   private issueInfo: IssueInfo;
   private repoDir: string;
   private branchName: string;
+  private installationId?: number;
+  private octokit: Octokit;
 
   /**
-   * Constructs a new GitService instance
+   * Initializes the Git service
    */
-  constructor(repoInfo: RepoInfo, issueInfo: IssueInfo) {
+  constructor(repoInfo: RepoInfo, issueInfo: IssueInfo, octokit: Octokit, installationId?: number) {
     this.repoInfo = repoInfo;
     this.issueInfo = issueInfo;
-    this.repoDir = path.join(config.app.tempDir, `${repoInfo.owner}-${repoInfo.repo}-${Date.now()}`);
-    this.branchName = `issue-${issueInfo.number}-${Date.now()}`;
+    this.installationId = installationId;
+    this.octokit = octokit;
+
+    // Create a unique directory for the repository
+    const timestamp = Date.now();
+    this.repoDir = path.join(config.app.tempDir, `${repoInfo.owner}-${repoInfo.repo}-${timestamp}`);
+
+    // Create a branch name based on the issue number
+    this.branchName = `issue-${issueInfo.number}-${timestamp}`;
+
+    // Initialize git
     this.git = simpleGit();
   }
 
@@ -29,17 +41,34 @@ export class GitService {
    * Clones the repository
    */
   async cloneRepository(): Promise<string> {
-    console.log(`Cloning repository ${this.repoInfo.cloneUrl} to ${this.repoDir}`);
+    console.log(`Cloning repository ${this.repoInfo.owner}/${this.repoInfo.repo}`);
 
-    // Ensure the directory exists
-    fs.mkdirSync(this.repoDir, { recursive: true });
+    // Create a temporary directory for the repository
+    if (!fs.existsSync(config.app.tempDir)) {
+      fs.mkdirSync(config.app.tempDir, { recursive: true });
+    }
+
+    // Get authentication token for Git operations
+    const authResult = await this.octokit.auth({
+      type: 'installation',
+      installationId: this.installationId,
+      repositoryIds: [],
+    }) as { token: string };
+
+    // Use the token in the clone URL
+    const repoUrl = `https://x-access-token:${authResult.token}@github.com/${this.repoInfo.owner}/${this.repoInfo.repo}.git`;
 
     // Clone the repository
-    await this.git.clone(this.repoInfo.cloneUrl, this.repoDir);
-
-    // Set up the git instance to work in the cloned directory
+    await this.git.clone(repoUrl, this.repoDir);
     this.git = simpleGit(this.repoDir);
 
+    // Configure Git with author information if provided
+    if (config.git.authorName && config.git.authorEmail) {
+      await this.git.addConfig('user.name', config.git.authorName);
+      await this.git.addConfig('user.email', config.git.authorEmail);
+    }
+
+    console.log(`Repository cloned to ${this.repoDir}`);
     return this.repoDir;
   }
 
