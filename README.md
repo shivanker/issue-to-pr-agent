@@ -14,7 +14,7 @@ A GitHub App that automatically creates Pull Requests in response to new issues 
 
 ## Architecture
 
-- **AWS Lambda**: Serverless function that processes GitHub webhooks
+- **AWS Lambda**: Serverless function that processes GitHub webhooks (supports both zip and container deployment)
 - **GitHub Webhooks**: Listens for issue events
 - **GitHub API**: Used to create branches, pull requests, and comments
 - **TypeScript**: Type-safe code for better maintainability
@@ -25,6 +25,15 @@ A GitHub App that automatically creates Pull Requests in response to new issues 
 - Node.js 20.x or later
 - AWS Account with permissions to create Lambda functions
 - GitHub account with permissions to create GitHub Apps
+- Docker (optional, for container deployment)
+
+## Documentation
+
+The repository includes several documentation files:
+
+- [LOCAL_TESTING.md](LOCAL_TESTING.md): Instructions for testing the app locally
+- [CONTAINER_DEPLOYMENT.md](CONTAINER_DEPLOYMENT.md): Guide for deploying as a container
+- [AUTH.md](AUTH.md): Details about GitHub App authentication and installation IDs
 
 ## Setup
 
@@ -54,9 +63,11 @@ A GitHub App that automatically creates Pull Requests in response to new issues 
    - `GITHUB_APP_ID`: Your GitHub App ID
    - `GITHUB_PRIVATE_KEY`: Your GitHub App private key (replace newlines with `\n`)
    - `GITHUB_WEBHOOK_SECRET`: Your webhook secret
-   - `GITHUB_INSTALLATION_ID`: The installation ID for your GitHub App
+   - `GITHUB_CLIENT_SECRET`: (Optional) Your GitHub App client secret if you use it
 
-### 3. Build and Deploy
+### 3. Deployment Options
+
+#### Option 1: Function Zip Deployment
 
 ```bash
 # Clone this repository
@@ -72,9 +83,22 @@ npm run build
 # Package for Lambda deployment
 npm run package
 
-# Deploy to AWS Lambda (alternatively, upload manually via AWS Console)
+# Deploy to AWS Lambda
 npm run deploy
 ```
+
+#### Option 2: Container Deployment
+
+```bash
+# Clone this repository
+git clone https://github.com/yourusername/issue-to-pr-agent.git
+cd issue-to-pr-agent
+
+# Build and deploy using the provided script
+./build-and-deploy.sh
+```
+
+For more details, see [CONTAINER_DEPLOYMENT.md](CONTAINER_DEPLOYMENT.md).
 
 ### 4. Configure Webhook URL
 
@@ -82,9 +106,19 @@ npm run deploy
 2. Update the Webhook URL with your Lambda function URL
 3. Save changes
 
+## GitHub App Authentication
+
+This app uses GitHub App installation authentication to interact with repositories:
+
+1. Installation IDs are automatically extracted from webhook payloads
+2. These IDs are used to generate installation tokens with the correct scope
+3. No need to manually specify installation IDs in environment variables
+
+For details on how authentication works, see [AUTH.md](AUTH.md).
+
 ## Customizing the Change Implementation
 
-The default implementation creates a markdown file with issue information. To customize the changes made in response to an issue, modify the `defaultChangeImplementer` function in `src/services/change-implementer.ts`:
+The default implementation creates a markdown file with issue information. To customize the changes made in response to an issue, modify the `defaultChangeImplementer` function in `src/change-implementer.ts`:
 
 ```typescript
 export async function defaultChangeImplementer(
@@ -97,6 +131,20 @@ export async function defaultChangeImplementer(
   return changedFiles; // Return array of modified file paths
 }
 ```
+
+## Local Testing
+
+You can test the application locally without deploying to AWS:
+
+```bash
+# Test with sample data
+npm run test:local
+
+# Test with a local webhook server using ngrok
+npm run webhook
+```
+
+For detailed instructions, see [LOCAL_TESTING.md](LOCAL_TESTING.md).
 
 ## Development
 
