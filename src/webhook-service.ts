@@ -1,4 +1,4 @@
-import { createOctokitApp, getRepoInfoFromPayload, getIssueInfoFromPayload, createPullRequest, addIssueComment } from './github';
+import { createOctokitApp, getRepoInfoFromPayload, getIssueInfoFromPayload, createPullRequest, addIssueComment, getInstallationIdFromPayload } from './github';
 import { GitService } from './git-service';
 import { config } from './config';
 import { defaultChangeImplementer } from './change-implementer';
@@ -8,7 +8,7 @@ import { defaultChangeImplementer } from './change-implementer';
  */
 export class WebhookService {
   /**
-   * Handles the webhook event
+   * Handles a GitHub webhook event
    */
   async handleWebhook(event: string, payload: any): Promise<void> {
     console.log(`Received GitHub webhook event: ${event}`);
@@ -32,8 +32,12 @@ export class WebhookService {
       const repoInfo = getRepoInfoFromPayload(payload);
       const issueInfo = getIssueInfoFromPayload(payload);
 
+      // Get installation ID from payload
+      const installationId = getInstallationIdFromPayload(payload);
+      console.log(`Using installation ID: ${installationId || 'none (using app-level authentication)'}`);
+
       // Create an authenticated Octokit instance
-      const octokit = await createOctokitApp();
+      const octokit = await createOctokitApp(installationId);
 
       // Create GitService instance
       const gitService = new GitService(repoInfo, issueInfo);

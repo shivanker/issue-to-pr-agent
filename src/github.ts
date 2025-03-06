@@ -8,18 +8,31 @@ import type {
 } from './types';
 
 /**
- * Creates and returns an authenticated Octokit instance for the GitHub App
+ * Creates an authenticated Octokit instance using GitHub App credentials
  */
-export async function createOctokitApp(): Promise<Octokit> {
+export async function createOctokitApp(installationId?: number): Promise<Octokit> {
+  const authOptions: any = {
+    appId: config.github.appId,
+    privateKey: config.github.privateKey,
+    clientSecret: config.github.clientSecret,
+  };
+
+  // Add installation ID if provided
+  if (installationId) {
+    authOptions.installationId = installationId;
+  }
+
   return new Octokit({
     authStrategy: createAppAuth,
-    auth: {
-      appId: config.github.appId,
-      privateKey: config.github.privateKey,
-      // installationId: config.github.installationId,
-      clientSecret: config.github.clientSecret,
-    },
+    auth: authOptions,
   });
+}
+
+/**
+ * Extracts the installation ID from a webhook payload
+ */
+export function getInstallationIdFromPayload(payload: any): number | undefined {
+  return payload.installation?.id;
 }
 
 /**

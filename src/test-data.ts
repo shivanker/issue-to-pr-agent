@@ -11,6 +11,13 @@ export const sampleIssueOpenedEvent: LambdaEvent = {
   },
   body: JSON.stringify({
     action: 'opened',
+    installation: {
+      id: 12345678,
+      account: {
+        login: 'test-org',
+        id: 87654321
+      }
+    },
     issue: {
       number: 123,
       title: 'Test Issue: Add new feature',
@@ -58,6 +65,13 @@ export const githubPingEvent: LambdaEvent = {
   body: JSON.stringify({
     zen: "Favor focus over features.",
     hook_id: 533790625,
+    installation: {
+      id: 12345678,
+      account: {
+        login: 'test-org',
+        id: 87654321
+      }
+    },
     hook: {
       type: "App",
       id: 533790625,
