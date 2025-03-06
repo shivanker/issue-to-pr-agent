@@ -16,7 +16,8 @@ export async function createOctokitApp(): Promise<Octokit> {
     auth: {
       appId: config.github.appId,
       privateKey: config.github.privateKey,
-      installationId: config.github.installationId,
+      // installationId: config.github.installationId,
+      clientSecret: config.github.clientSecret,
     },
   });
 }

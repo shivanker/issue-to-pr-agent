@@ -7,10 +7,11 @@ export const config = {
     privateKey: process.env.GITHUB_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
     webhookSecret: process.env.GITHUB_WEBHOOK_SECRET || '',
     installationId: process.env.GITHUB_INSTALLATION_ID || '',
+    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
     userAgent: 'issue-to-pr-agent',
     // For local testing - repository to use if not specified in the webhook payload
-    owner: process.env.GITHUB_OWNER || 'test-owner',
-    repo: process.env.GITHUB_REPO || 'test-repo',
+    owner: process.env.GITHUB_OWNER || 'shivanker',
+    repo: process.env.GITHUB_REPO || 'issue-to-pr-agent',
   },
   aws: {
     region: process.env.AWS_REGION || 'us-east-1',
@@ -28,7 +29,7 @@ export const config = {
   },
   git: {
     workDir: process.env.GIT_WORK_DIR || '/tmp/issue-to-pr-agent',
-    authorName: process.env.GIT_AUTHOR_NAME || 'GitHub Issue Bot',
-    authorEmail: process.env.GIT_AUTHOR_EMAIL || 'bot@example.com',
+    authorName: process.env.GIT_AUTHOR_NAME || 'shivanker',
+    authorEmail: process.env.GIT_AUTHOR_EMAIL || 'shivanker@sushilabs.co.uk',
   }
 };
