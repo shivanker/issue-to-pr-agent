@@ -1,7 +1,7 @@
 import { config } from './config';
 import type { LambdaEvent, LambdaResponse } from './types';
 // Import AWS X-Ray SDK for Lambda tracing support
-import * as AWSXRay from 'aws-xray-sdk';
+// import * as AWSXRay from 'aws-xray-sdk';
 
 /**
  * Lambda handler function for GitHub webhook events
@@ -52,27 +52,36 @@ export const handler = async (event: LambdaEvent): Promise<LambdaResponse> => {
     if (config.github.webhookSecret) {
       try {
         const signature = event.headers['x-hub-signature-256'] || event.headers['X-Hub-Signature-256'] || '';
+        const payloadBody = typeof event.body === 'string' ? event.body : JSON.stringify(event.body);
 
-        // Use a try-catch block to handle signature verification
-        try {
-          // Simple signature check - in production, use a proper verification method
-          if (!signature || !signature.startsWith('sha256=')) {
-            console.error('Invalid signature format');
-            return {
-              statusCode: 401,
-              body: JSON.stringify({ error: 'Invalid signature format' }),
-            };
-          }
+        // Verify signature format
+        if (!signature || !signature.startsWith('sha256=')) {
+          console.error('Invalid signature format');
+          return {
+            statusCode: 401,
+            body: JSON.stringify({ error: 'Invalid signature format' }),
+          };
+        }
 
-          // TODO: verify the signature here
-          console.log('Webhook signature verification skipped for development');
-        } catch (error) {
-          console.error('Webhook signature verification failed:', error);
+        // Verify the signature using crypto
+        const crypto = require('crypto');
+        const hmac = crypto.createHmac('sha256', config.github.webhookSecret);
+        const digest = 'sha256=' + hmac.update(payloadBody).digest('hex');
+
+        // Use timing-safe comparison to prevent timing attacks
+        const signatureBuffer = Buffer.from(signature);
+        const digestBuffer = Buffer.from(digest);
+
+        if (signatureBuffer.length !== digestBuffer.length ||
+            !crypto.timingSafeEqual(digestBuffer, signatureBuffer)) {
+          console.error('Webhook signature verification failed');
           return {
             statusCode: 401,
             body: JSON.stringify({ error: 'Webhook signature verification failed' }),
           };
         }
+
+        console.log('Webhook signature verified successfully');
       } catch (error) {
         console.error('Webhook signature verification failed:', error);
         return {
