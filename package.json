@@ -10,7 +10,6 @@
     "clean": "rm -rf dist",
     "lint": "eslint 'src/**/*.ts'",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy": "npm run build && aws lambda update-function-code --function-name issue-to-pr-agent --zip-file fileb://dist/lambda-package.zip",
     "package": "npm run build && cd dist && zip -r lambda-package.zip .",
     "test:local": "ts-node src/local-test.ts",
     "webhook": "ts-node src/webhook-server.ts"
