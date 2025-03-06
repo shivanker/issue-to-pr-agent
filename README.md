@@ -75,18 +75,8 @@ npm run webhook
 
 ## Deployment
 
-### Option 1: Lambda Zip Deployment
-
 ```bash
-npm run build
-npm run package
-npm run deploy  # Requires AWS CLI configured
-```
-
-### Option 2: Lambda Container Deployment
-
-```bash
-./test.sh deploy
+./build-and-deploy.sh
 ```
 
 This builds and pushes a container to ECR, then updates your Lambda function.
