@@ -50,6 +50,13 @@ export class WebhookService {
         const branchName = await gitService.createBranch();
 
         // Make changes to the repository
+        await addIssueComment(
+          octokit,
+          repoInfo.owner,
+          repoInfo.repo,
+          issueInfo.number,
+          `🤖 I've started working on this issue. 🛠️`
+        );
         const changedFiles = await gitService.makeChanges(defaultChangeImplementer);
 
         // If no files were changed, skip the PR creation
@@ -60,7 +67,7 @@ export class WebhookService {
             repoInfo.owner,
             repoInfo.repo,
             issueInfo.number,
-            'No changes were made based on this issue, skipping PR creation.'
+            '🤖 No changes were made based on this issue, skipping PR creation.'
           );
           return;
         }
@@ -92,7 +99,7 @@ export class WebhookService {
           repoInfo.owner,
           repoInfo.repo,
           issueInfo.number,
-          `I've created a pull request #${prNumber} with proposed changes for this issue.`
+          `🤖 I've created a pull request #${prNumber} with proposed changes for this issue.`
         );
 
         console.log(`Successfully created PR #${prNumber} for issue #${issueInfo.number}`);
