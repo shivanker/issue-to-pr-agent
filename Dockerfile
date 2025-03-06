@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 COPY tsconfig.json ./
 COPY src/ ./src/
 
-# Install production dependencies only
+# Install all dependencies (including dev)
 RUN npm ci
 
 # Build the TypeScript code
