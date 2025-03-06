@@ -4,7 +4,7 @@ This document provides instructions for testing the GitHub webhook handler local
 
 ## Prerequisites
 
-- Node.js v20 or later
+- Node.js v22 or later
 - npm
 - [ngrok](https://ngrok.com/) (for testing with real GitHub events)
 - A GitHub App with the necessary permissions (for real GitHub events)
@@ -19,6 +19,7 @@ export const config = {
     appId: "your-github-app-id",
     privateKey: "your-github-app-private-key",
     installationId: "your-installation-id",
+    privateKey: "begin-private-key\n...",
     webhookSecret: "your-webhook-secret", // Optional
     userAgent: "issue-to-pr-agent",
     owner: "your-github-username", // Used for local testing

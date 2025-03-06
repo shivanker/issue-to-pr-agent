@@ -1,14 +1,13 @@
 import 'dotenv/config';
 import { handler } from './index';
-import { sampleIssueOpenedEvent } from './test-data';
+import { sampleIssueOpenedEvent, githubPingEvent } from './test-data';
 import { config } from './config';
 
 /**
- * Main function to run the local test
+ * Test the handler with a sample issue opened event
  */
-async function runLocalTest() {
+async function testIssueOpened() {
   console.log('Starting local test with sample issue opened event');
-  console.log('Using config:', JSON.stringify(config, null, 2));
   console.log('------------------------------------------------------');
 
   try {
@@ -17,11 +16,46 @@ async function runLocalTest() {
 
     console.log('------------------------------------------------------');
     console.log('Response:', JSON.stringify(response, null, 2));
-    console.log('Local test completed');
+    console.log('Issue opened test completed');
   } catch (error) {
-    console.error('Error in local test:', error);
+    console.error('Error in issue opened test:', error);
   }
 }
 
-// Run the test
-runLocalTest();
+/**
+ * Test the handler with the GitHub ping event
+ */
+async function testGitHubPing() {
+  console.log('\nStarting local test with GitHub ping event');
+  console.log('------------------------------------------------------');
+
+  try {
+    // Call the Lambda handler with the ping event
+    const response = await handler(githubPingEvent);
+
+    console.log('------------------------------------------------------');
+    console.log('Response:', JSON.stringify(response, null, 2));
+    console.log('GitHub ping test completed');
+  } catch (error) {
+    console.error('Error in GitHub ping test:', error);
+  }
+}
+
+/**
+ * Main function to run both tests
+ */
+async function runLocalTests() {
+  console.log('Using config:', JSON.stringify(config, null, 2));
+  console.log('======================================================');
+
+  // Run the issue opened test
+  await testIssueOpened();
+
+  // Run the GitHub ping test
+  await testGitHubPing();
+
+  console.log('\nAll tests completed');
+}
+
+// Run the tests
+runLocalTests();

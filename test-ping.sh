@@ -21,28 +21,6 @@ PAYLOAD=$(cat <<EOF
 EOF
 )
 
-# Check for .env file
-ENV_FLAG=""
-if [ -f .env ]; then
-  ENV_FLAG="--env-file .env"
-fi
-
-# Test if any container with our image is running
-if ! docker ps | grep -q 'project-sensei-local'; then
-  echo "Lambda container is not running. Building and starting it..."
-
-  # Build the container if needed
-  docker build -t project-sensei-local .
-
-  # Run the container in the background
-  echo "Running the container in the background"
-  docker run --name project-sensei-test --rm -d -p 9000:8080 $ENV_FLAG project-sensei-local
-  echo "Waiting for container to initialize..."
-  sleep 3
-else
-  echo "Lambda container is already running"
-fi
-
 echo "Sending GitHub ping event to the Lambda container..."
 curl -s -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" \
   -d "$PAYLOAD" | jq .
