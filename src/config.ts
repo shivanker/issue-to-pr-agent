@@ -6,7 +6,6 @@ export const config = {
     appId: process.env.GITHUB_APP_ID || '',
     privateKey: process.env.GITHUB_PRIVATE_KEY?.replace(/\\n/g, '\n').replace(/^['"]|['"]$/g, '') || '',
     webhookSecret: process.env.GITHUB_WEBHOOK_SECRET || '',
-    installationId: process.env.GITHUB_INSTALLATION_ID || '',
     clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
     userAgent: 'issue-to-pr-agent',
     // For local testing - repository to use if not specified in the webhook payload
@@ -29,7 +28,7 @@ export const config = {
   },
   git: {
     workDir: process.env.GIT_WORK_DIR || '/tmp/issue-to-pr-agent',
-    authorName: process.env.GIT_AUTHOR_NAME || 'shivanker',
-    authorEmail: process.env.GIT_AUTHOR_EMAIL || 'shivanker@sushilabs.co.uk',
+    authorName: process.env.GIT_AUTHOR_NAME || '',
+    authorEmail: process.env.GIT_AUTHOR_EMAIL || '',
   }
 };
