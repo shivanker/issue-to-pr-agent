@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -x
 
 # Unified test and deployment script for issue-to-pr-agent
 
@@ -19,6 +20,7 @@ function show_help() {
 
 # Check for .env file
 if [ -f .env ]; then
+  echo "Using .env file for environment variables."
   ENV_FLAG="--env-file .env"
 else
   echo "Warning: No .env file found. Using default environment variables."
@@ -80,7 +82,7 @@ EOF
   debug)
     echo "Starting interactive shell in container..."
     docker build -t project-sensei-local .
-    docker run -it --rm --entrypoint /bin/bash project-sensei-local
+    docker run -it --rm --entrypoint /bin/bash $ENV_FLAG project-sensei-local
     ;;
 
   help|*)

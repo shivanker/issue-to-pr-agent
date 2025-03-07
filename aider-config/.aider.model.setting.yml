@@ -1,0 +1,10 @@
+- name: fireworks_ai/accounts/fireworks/models/deepseek-r1
+  edit_format: architect
+  weak_model_name: fireworks_ai/accounts/fireworks/models/deepseek-v3
+  use_repo_map: true
+  extra_params:
+    max_tokens: 160000
+  use_temperature: false
+  editor_model_name: claude-3-7-sonnet-latest
+  editor_edit_format: editor-diff
+  remove_reasoning: think

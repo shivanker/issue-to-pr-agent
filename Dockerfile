@@ -16,6 +16,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Copy source code
 COPY tsconfig.json ./
 COPY src/ ./src/
+COPY aider-config/ /root/
 
 # Install all dependencies (including dev)
 RUN npm ci
