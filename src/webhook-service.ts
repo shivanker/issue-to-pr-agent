@@ -56,7 +56,91 @@ export class WebhookService {
         issueInfo.number,
         `🤖 I've started working on this issue. 🛠️`
       );
-      const changedFiles = await gitService.makeChanges(defaultChangeImplementer);
+
+      let changedFiles: string[] = [];
+      let commandOutput: { stdout: string, stderr: string } | undefined;
+
+      try {
+        // Try to make changes using the AI agent
+        const result = await gitService.makeChanges(defaultChangeImplementer);
+        changedFiles = result.changedFiles;
+        commandOutput = result.commandOutput;
+      } catch (error) {
+        console.error('Error implementing changes:', error);
+
+        // Get any output that was collected before the error
+        if (error instanceof Error && 'commandOutput' in gitService) {
+          commandOutput = (gitService as any).commandOutput;
+        }
+
+        // Post error as a comment
+        await addIssueComment(
+          octokit,
+          repoInfo.owner,
+          repoInfo.repo,
+          issueInfo.number,
+          `### ❌ Error implementing changes
+
+There was an error while trying to implement changes for this issue:
+
+\`\`\`
+${error instanceof Error ? error.message : String(error)}
+\`\`\`
+
+${error instanceof Error && error.cause ? `Caused by: ${String(error.cause)}` : ''}
+`
+        );
+
+        // We'll still post the command output if available, then return
+        if (commandOutput) {
+          const outputComment = `### 🤖 AI Agent Output (before error)
+
+<details>
+<summary>Click to view detailed output</summary>
+
+\`\`\`
+${commandOutput.stdout}
+\`\`\`
+
+${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`\`\`` : ''}
+</details>
+`;
+
+          await addIssueComment(
+            octokit,
+            repoInfo.owner,
+            repoInfo.repo,
+            issueInfo.number,
+            outputComment
+          );
+        }
+
+        return;
+      }
+
+      // Post aider command output as a comment if available
+      if (commandOutput) {
+        const outputComment = `### 🤖 AI Agent Output
+
+<details>
+<summary>Click to view detailed output</summary>
+
+\`\`\`
+${commandOutput.stdout}
+\`\`\`
+
+${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`\`\`` : ''}
+</details>
+`;
+
+        await addIssueComment(
+          octokit,
+          repoInfo.owner,
+          repoInfo.repo,
+          issueInfo.number,
+          outputComment
+        );
+      }
 
       // If no files were changed, skip the PR creation
       if (changedFiles.length === 0) {

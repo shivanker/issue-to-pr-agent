@@ -90,13 +90,26 @@ export class GitService {
   /**
    * Makes changes to the repository based on the issue information
    */
-  async makeChanges(implementer: ChangeImplementer): Promise<string[]> {
+  async makeChanges(implementer: ChangeImplementer): Promise<{ changedFiles: string[], commandOutput?: { stdout: string, stderr: string } }> {
     console.log(`Making changes for issue #${this.issueInfo.number}`);
 
-    // Use the provided change implementer to modify files
-    const changedFiles = await implementer(this.repoDir, this.issueInfo);
+    try {
+      // Use the provided change implementer to modify files
+      const result = await implementer(this.repoDir, this.issueInfo);
 
-    return changedFiles;
+      return {
+        changedFiles: result.changedFiles,
+        commandOutput: result.output
+      };
+    } catch (error) {
+      // Store any command output that was generated before the error
+      if (error instanceof Error && 'output' in error) {
+        (this as any).commandOutput = (error as any).output;
+      }
+
+      // Re-throw the error to be handled by the caller
+      throw error;
+    }
   }
 
   /**

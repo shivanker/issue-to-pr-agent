@@ -64,6 +64,17 @@ export type GitHubEvent = WebhookEvent;
 export type IssuesEvent = WebhookEvent & { action: 'opened' };
 
 /**
+ * Result from a change implementation operation
+ */
+export interface ChangeResult {
+  changedFiles: string[];
+  output?: {
+    stdout: string;
+    stderr: string;
+  };
+}
+
+/**
  * Interface for a function that implements repository changes
  */
-export type ChangeImplementer = (repoPath: string, issueInfo: IssueInfo) => Promise<string[]>;
+export type ChangeImplementer = (repoPath: string, issueInfo: IssueInfo) => Promise<ChangeResult>;

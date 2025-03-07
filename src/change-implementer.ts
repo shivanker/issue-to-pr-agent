@@ -1,13 +1,15 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { IssueInfo } from './types';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { IssueInfo, ChangeResult } from './types';
+
+const execPromise = promisify(exec);
 
 /**
  * Parses issue body to extract structured information
  * @param body Issue body text
  * @returns Object with extracted information
  */
-function parseIssueBody(body: string | null): Record<string, string> {
+export function parseIssueBody(body: string | null): Record<string, string> {
   if (!body) return {};
 
   const result: Record<string, string> = {};
@@ -36,71 +38,137 @@ function parseIssueBody(body: string | null): Record<string, string> {
  *
  * @param repoPath Path to the cloned repository
  * @param issueInfo Information about the issue that triggered the changes
- * @returns Array of paths to files that were modified
+ * @returns ChangeResult with array of paths to files that were modified and command output
  */
-export async function defaultChangeImplementer(repoPath: string, issueInfo: IssueInfo): Promise<string[]> {
+export async function defaultChangeImplementer(repoPath: string, issueInfo: IssueInfo): Promise<ChangeResult> {
   console.log(`Implementing changes for issue #${issueInfo.number} in ${repoPath}`);
 
   const changedFiles: string[] = [];
+  let commandOutput = { stdout: '', stderr: '' };
 
-  try {
-    // Parse the issue body for structured information
-    const parsedInfo = parseIssueBody(issueInfo.body);
+  // Get initial git status to compare later
+  const { stdout: initialGitStatus } = await execPromise(`cd "${repoPath}" && git status --porcelain`);
+  const initialFiles = new Set(
+    initialGitStatus
+      .split('\n')
+      .filter(line => line.trim() !== '')
+      .map(line => {
+        const match = line.match(/^..\s+(.+)$/);
+        return match ? match[1] : null;
+      })
+      .filter(filename => filename !== null) as string[]
+  );
 
-    // Create a markdown file with issue details (default action)
-    const issueFileName = `issue-${issueInfo.number}.md`;
-    const issueFilePath = path.join(repoPath, issueFileName);
+  // Parse the issue body to extract structured information
+  const parsedInfo = parseIssueBody(issueInfo.body);
 
-    // Create a markdown file with issue details
-    const content = `# Issue #${issueInfo.number}: ${issueInfo.title}
+  // Create a well-structured message for aider
+  const structuredMessage = `
+Issue #${issueInfo.number}: ${issueInfo.title}
 
-Created by automatic PR generator.
-
-## Issue Body
 ${issueInfo.body || 'No description provided.'}
 
-## Labels
-${issueInfo.labels.length > 0 ? issueInfo.labels.join(', ') : 'No labels'}
+${parsedInfo.files ? `Files to modify: ${parsedInfo.files}` : ''}
+${parsedInfo.changes ? `Changes needed: ${parsedInfo.changes}` : ''}
 
-## Parsed Information
-${Object.entries(parsedInfo).map(([key, value]) => `- ${key}: ${value}`).join('\n')}
+Please implement the necessary changes to address this issue. Focus on high quality implementation that follows best practices.
+`.trim();
 
-This file was automatically generated based on issue #${issueInfo.number}.
-`;
+  try {
+    // Run aider command to implement changes
+    const aiderCommand = `cd "${repoPath}" && aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message "${structuredMessage.replace(/"/g, '\\"')}"`;
 
-    fs.writeFileSync(issueFilePath, content);
-    changedFiles.push(issueFileName);
+    console.log(`Running aider command: ${aiderCommand}`);
 
-    // If specific files were mentioned in the issue, try to modify them
-    if (parsedInfo.files) {
-      const filesToModify = parsedInfo.files.split(',').map(f => f.trim());
+    const { stdout, stderr } = await execPromise(aiderCommand);
+    console.log('Aider command output:', stdout);
 
-      for (const file of filesToModify) {
-        const filePath = path.join(repoPath, file);
+    // Save the command output
+    commandOutput = { stdout, stderr };
 
-        // Check if file exists
-        if (fs.existsSync(filePath)) {
-          // Read the file content
-          let fileContent = fs.readFileSync(filePath, 'utf8');
+    if (stderr) {
+      console.error('Aider command stderr:', stderr);
+    }
+  } catch (error) {
+    // Capture any error from the aider command, but still try to collect changed files
+    // and include the error in the result's output
+    console.error('Error running aider command:', error);
 
-          // Add a comment to the file about the issue
-          const comment = `\n// Modified by issue-to-pr-agent for issue #${issueInfo.number}\n`;
-          fileContent += comment;
+    // Add error to stderr output
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    commandOutput.stderr += `\n\nError running aider command: ${errorMessage}`;
 
-          // Write the modified content back
-          fs.writeFileSync(filePath, fileContent);
+    // Re-throw the error after we've updated the commandOutput
+    const enhancedError = new Error(`Failed to run aider command: ${errorMessage}`, { cause: error });
+    (enhancedError as any).output = commandOutput;
+    throw enhancedError;
+  }
+
+  try {
+    // Get list of changed files by checking git status
+    // This will include both staged and unstaged changes
+    const { stdout: gitStatusOutput } = await execPromise(`cd "${repoPath}" && git status --porcelain`);
+
+    // Parse git status output to get changed files
+    const currentFiles = new Set(
+      gitStatusOutput
+        .split('\n')
+        .filter(line => line.trim() !== '')
+        .map(line => {
+          // Git status --porcelain format is "XY filename"
+          // where X is status in staging area, Y is status in working directory
+          const match = line.match(/^..\s+(.+)$/);
+          return match ? match[1] : null;
+        })
+        .filter(filename => filename !== null) as string[]
+    );
+
+    // Find new files that weren't in the initial status
+    for (const file of currentFiles) {
+      if (!initialFiles.has(file)) {
+        changedFiles.push(file);
+      }
+    }
+
+    // Also find files that were in initial status but no longer in current status (deleted files)
+    for (const file of initialFiles) {
+      if (!currentFiles.has(file)) {
+        changedFiles.push(file);
+      }
+    }
+
+    // If aider made commits already, we need to detect what files were changed in those commits
+    // This gets the list of files changed in the most recent commit
+    try {
+      const { stdout: lastCommitFiles } = await execPromise(`cd "${repoPath}" && git show --name-only --pretty="" HEAD`);
+      const commitChangedFiles = lastCommitFiles.split('\n').filter(line => line.trim() !== '');
+
+      // Add files from the commit that aren't already in our list
+      for (const file of commitChangedFiles) {
+        if (!changedFiles.includes(file)) {
           changedFiles.push(file);
-        } else {
-          console.log(`File ${file} specified in issue does not exist in the repository`);
         }
       }
+    } catch (error) {
+      // If this fails, it might be because there are no commits yet, which is fine
+      console.log('Could not get files from last commit, continuing...');
     }
 
     console.log(`Modified ${changedFiles.length} files`);
 
-    return changedFiles;
+    return { changedFiles, output: commandOutput };
   } catch (error) {
-    console.error('Error implementing changes:', error);
-    return [];
+    console.error('Error detecting changed files:', error);
+
+    // Add error to stderr output
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    commandOutput.stderr += `\n\nError detecting changed files: ${errorMessage}`;
+
+    // Re-throw with the updated command output
+    const enhancedError = new Error(`Failed to detect changed files: ${errorMessage}`, {
+      cause: error
+    });
+    (enhancedError as any).output = commandOutput;
+    throw enhancedError;
   }
 }
