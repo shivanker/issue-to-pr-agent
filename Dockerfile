@@ -1,13 +1,17 @@
 FROM public.ecr.aws/lambda/nodejs:22
 
-# Install git and other dependencies
-RUN dnf install -y git
+# Install packages
+RUN dnf install -y git tar
 
 # Create app directory
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Copy package files
 COPY package.json package-lock.json ./
+
+# Install Aider
+RUN curl -LsSf https://aider.chat/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
 
 # Copy source code
 COPY tsconfig.json ./
