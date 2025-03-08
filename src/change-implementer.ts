@@ -1,9 +1,9 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { IssueInfo, ChangeResult } from './types';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import { exec } from "child_process";
+import { promisify } from "util";
+import { IssueInfo, ChangeResult } from "./types";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
@@ -44,23 +44,30 @@ export function parseIssueBody(body: string | null): Record<string, string> {
  * @param issueInfo Information about the issue that triggered the changes
  * @returns ChangeResult with array of paths to files that were modified and command output
  */
-export async function defaultChangeImplementer(repoPath: string, issueInfo: IssueInfo): Promise<ChangeResult> {
-  console.log(`Implementing changes for issue #${issueInfo.number} in ${repoPath}`);
+export async function defaultChangeImplementer(
+  repoPath: string,
+  issueInfo: IssueInfo
+): Promise<ChangeResult> {
+  console.log(
+    `Implementing changes for issue #${issueInfo.number} in ${repoPath}`
+  );
 
   const changedFiles: string[] = [];
-  let commandOutput = { stdout: '', stderr: '' };
+  let commandOutput = { stdout: "", stderr: "" };
 
   // Get initial git status to compare later
-  const { stdout: initialGitStatus } = await execPromise(`cd "${repoPath}" && git status --porcelain`);
+  const { stdout: initialGitStatus } = await execPromise(
+    `cd "${repoPath}" && git status --porcelain`
+  );
   const initialFiles = new Set(
     initialGitStatus
-      .split('\n')
-      .filter(line => line.trim() !== '')
-      .map(line => {
+      .split("\n")
+      .filter((line) => line.trim() !== "")
+      .map((line) => {
         const match = line.match(/^..\s+(.+)$/);
         return match ? match[1] : null;
       })
-      .filter(filename => filename !== null) as string[]
+      .filter((filename) => filename !== null) as string[]
   );
 
   // Parse the issue body to extract structured information
@@ -70,16 +77,19 @@ export async function defaultChangeImplementer(repoPath: string, issueInfo: Issu
   const structuredMessage = `
 Issue #${issueInfo.number}: ${issueInfo.title}
 
-${issueInfo.body || 'No description provided.'}
+${issueInfo.body || "No description provided."}
 
-${parsedInfo.files ? `Files to modify: ${parsedInfo.files}` : ''}
-${parsedInfo.changes ? `Changes needed: ${parsedInfo.changes}` : ''}
+${parsedInfo.files ? `Files to modify: ${parsedInfo.files}` : ""}
+${parsedInfo.changes ? `Changes needed: ${parsedInfo.changes}` : ""}
 
 Please implement the necessary changes to address this issue. Focus on high quality implementation that follows best practices.
 `.trim();
 
   // Create a temporary file for the message
-  const tempFilePath = path.join(os.tmpdir(), `aider-message-${Date.now()}.txt`);
+  const tempFilePath = path.join(
+    os.tmpdir(),
+    `aider-message-${Date.now()}.txt`
+  );
 
   try {
     // Write the message to the temporary file
@@ -92,25 +102,28 @@ Please implement the necessary changes to address this issue. Focus on high qual
     console.log(`Running aider command: ${aiderCommand}`);
 
     const { stdout, stderr } = await execPromise(aiderCommand);
-    console.log('Aider command output:', stdout);
+    console.log("Aider command output:", stdout);
 
     // Save the command output
     commandOutput = { stdout, stderr };
 
     if (stderr) {
-      console.error('Aider command stderr:', stderr);
+      console.error("Aider command stderr:", stderr);
     }
   } catch (error) {
     // Capture any error from the aider command, but still try to collect changed files
     // and include the error in the result's output
-    console.error('Error running aider command:', error);
+    console.error("Error running aider command:", error);
 
     // Add error to stderr output
     const errorMessage = error instanceof Error ? error.message : String(error);
     commandOutput.stderr += `\n\nError running aider command: ${errorMessage}`;
 
     // Re-throw the error after we've updated the commandOutput
-    const enhancedError = new Error(`Failed to run aider command: ${errorMessage}`, { cause: error });
+    const enhancedError = new Error(
+      `Failed to run aider command: ${errorMessage}`,
+      { cause: error }
+    );
     (enhancedError as any).output = commandOutput;
     throw enhancedError;
   }
@@ -118,20 +131,22 @@ Please implement the necessary changes to address this issue. Focus on high qual
   try {
     // Get list of changed files by checking git status
     // This will include both staged and unstaged changes
-    const { stdout: gitStatusOutput } = await execPromise(`cd "${repoPath}" && git status --porcelain`);
+    const { stdout: gitStatusOutput } = await execPromise(
+      `cd "${repoPath}" && git status --porcelain`
+    );
 
     // Parse git status output to get changed files
     const currentFiles = new Set(
       gitStatusOutput
-        .split('\n')
-        .filter(line => line.trim() !== '')
-        .map(line => {
+        .split("\n")
+        .filter((line) => line.trim() !== "")
+        .map((line) => {
           // Git status --porcelain format is "XY filename"
           // where X is status in staging area, Y is status in working directory
           const match = line.match(/^..\s+(.+)$/);
           return match ? match[1] : null;
         })
-        .filter(filename => filename !== null) as string[]
+        .filter((filename) => filename !== null) as string[]
     );
 
     // Find new files that weren't in the initial status
@@ -151,8 +166,12 @@ Please implement the necessary changes to address this issue. Focus on high qual
     // If aider made commits already, we need to detect what files were changed in those commits
     // This gets the list of files changed in the most recent commit
     try {
-      const { stdout: lastCommitFiles } = await execPromise(`cd "${repoPath}" && git show --name-only --pretty="" HEAD`);
-      const commitChangedFiles = lastCommitFiles.split('\n').filter(line => line.trim() !== '');
+      const { stdout: lastCommitFiles } = await execPromise(
+        `cd "${repoPath}" && git show --name-only --pretty="" HEAD`
+      );
+      const commitChangedFiles = lastCommitFiles
+        .split("\n")
+        .filter((line) => line.trim() !== "");
 
       // Add files from the commit that aren't already in our list
       for (const file of commitChangedFiles) {
@@ -162,23 +181,26 @@ Please implement the necessary changes to address this issue. Focus on high qual
       }
     } catch (error) {
       // If this fails, it might be because there are no commits yet, which is fine
-      console.log('Could not get files from last commit, continuing...');
+      console.log("Could not get files from last commit, continuing...");
     }
 
     console.log(`Modified ${changedFiles.length} files`);
 
     return { changedFiles, output: commandOutput };
   } catch (error) {
-    console.error('Error detecting changed files:', error);
+    console.error("Error detecting changed files:", error);
 
     // Add error to stderr output
     const errorMessage = error instanceof Error ? error.message : String(error);
     commandOutput.stderr += `\n\nError detecting changed files: ${errorMessage}`;
 
     // Re-throw with the updated command output
-    const enhancedError = new Error(`Failed to detect changed files: ${errorMessage}`, {
-      cause: error
-    });
+    const enhancedError = new Error(
+      `Failed to detect changed files: ${errorMessage}`,
+      {
+        cause: error,
+      }
+    );
     (enhancedError as any).output = commandOutput;
     throw enhancedError;
   }
