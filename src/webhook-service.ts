@@ -1,7 +1,14 @@
-import { createOctokitApp, getRepoInfoFromPayload, getIssueInfoFromPayload, createPullRequest, addIssueComment, getInstallationIdFromPayload } from './github';
-import { GitService } from './git-service';
-import { config } from './config';
-import { defaultChangeImplementer } from './change-implementer';
+import {
+  createOctokitApp,
+  getRepoInfoFromPayload,
+  getIssueInfoFromPayload,
+  createPullRequest,
+  addIssueComment,
+  getInstallationIdFromPayload,
+} from "./github";
+import { GitService } from "./git-service";
+import { config } from "./config";
+import { defaultChangeImplementer } from "./change-implementer";
 
 /**
  * Service for handling GitHub webhooks
@@ -14,7 +21,7 @@ export class WebhookService {
     console.log(`Received GitHub webhook event: ${event}`);
 
     // Only process 'issues' events with the 'opened' action
-    if (event === 'issues' && payload.action === 'opened') {
+    if (event === "issues" && payload.action === "opened") {
       await this.handleIssueOpened(payload);
     } else {
       console.log(`Ignoring event ${event} with action ${payload.action}`);
@@ -25,7 +32,9 @@ export class WebhookService {
    * Handles a new issue being opened
    */
   private async handleIssueOpened(payload: any): Promise<void> {
-    console.log(`Processing new issue: #${payload.issue.number} - ${payload.issue.title}`);
+    console.log(
+      `Processing new issue: #${payload.issue.number} - ${payload.issue.title}`
+    );
 
     // Get repository and issue information
     const repoInfo = getRepoInfoFromPayload(payload);
@@ -33,13 +42,22 @@ export class WebhookService {
 
     // Get installation ID from payload
     const installationId = getInstallationIdFromPayload(payload);
-    console.log(`Using installation ID: ${installationId || 'none (using app-level authentication)'}`);
+    console.log(
+      `Using installation ID: ${
+        installationId || "none (using app-level authentication)"
+      }`
+    );
 
     // Create an authenticated Octokit instance
     const octokit = await createOctokitApp(installationId);
 
     // Create GitService instance
-    const gitService = new GitService(repoInfo, issueInfo, octokit, installationId);
+    const gitService = new GitService(
+      repoInfo,
+      issueInfo,
+      octokit,
+      installationId
+    );
 
     try {
       // Clone the repository
@@ -58,7 +76,7 @@ export class WebhookService {
       );
 
       let changedFiles: string[] = [];
-      let commandOutput: { stdout: string, stderr: string } | undefined;
+      let commandOutput: { stdout: string; stderr: string } | undefined;
 
       try {
         // Try to make changes using the AI agent
@@ -66,32 +84,14 @@ export class WebhookService {
         changedFiles = result.changedFiles;
         commandOutput = result.commandOutput;
       } catch (error) {
-        console.error('Error implementing changes:', error);
+        console.error("Error implementing changes:", error);
 
         // Get any output that was collected before the error
-        if (error instanceof Error && 'commandOutput' in gitService) {
+        if (error instanceof Error && "commandOutput" in gitService) {
           commandOutput = (gitService as any).commandOutput;
         }
 
-        // Post error as a comment
-        await addIssueComment(
-          octokit,
-          repoInfo.owner,
-          repoInfo.repo,
-          issueInfo.number,
-          `### ❌ Error implementing changes
-
-There was an error while trying to implement changes for this issue:
-
-\`\`\`
-${error instanceof Error ? error.message : String(error)}
-\`\`\`
-
-${error instanceof Error && error.cause ? `Caused by: ${String(error.cause)}` : ''}
-`
-        );
-
-        // We'll still post the command output if available, then return
+        // We'll post the command output if available
         if (commandOutput) {
           const outputComment = `### 🤖 AI Agent Output (before error)
 
@@ -102,7 +102,11 @@ ${error instanceof Error && error.cause ? `Caused by: ${String(error.cause)}` : 
 ${commandOutput.stdout}
 \`\`\`
 
-${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`\`\`` : ''}
+${
+  commandOutput.stderr
+    ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`\`\``
+    : ""
+}
 </details>
 `;
 
@@ -112,6 +116,28 @@ ${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`
             repoInfo.repo,
             issueInfo.number,
             outputComment
+          );
+        } else {
+          // If command output is not available, just post error as a comment
+          await addIssueComment(
+            octokit,
+            repoInfo.owner,
+            repoInfo.repo,
+            issueInfo.number,
+            `### ❌ Error implementing changes
+
+There was an error while trying to implement changes for this issue:
+
+\`\`\`
+${error instanceof Error ? error.message : String(error)}
+\`\`\`
+
+${
+  error instanceof Error && error.cause
+    ? `Caused by: ${String(error.cause)}`
+    : ""
+}
+`
           );
         }
 
@@ -129,7 +155,11 @@ ${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`
 ${commandOutput.stdout}
 \`\`\`
 
-${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`\`\`` : ''}
+${
+  commandOutput.stderr
+    ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`\`\``
+    : ""
+}
 </details>
 `;
 
@@ -144,13 +174,13 @@ ${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`
 
       // If no files were changed, skip the PR creation
       if (changedFiles.length === 0) {
-        console.log('No files were changed, skipping PR creation');
+        console.log("No files were changed, skipping PR creation");
         await addIssueComment(
           octokit,
           repoInfo.owner,
           repoInfo.repo,
           issueInfo.number,
-          '🤖 No changes were made based on this issue, skipping PR creation.'
+          "🤖 No changes were made based on this issue, skipping PR creation."
         );
         return;
       }
@@ -164,7 +194,9 @@ ${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`
 
       // Create a PR
       const prTitle = `${config.app.prTitlePrefix}${issueInfo.number}: ${issueInfo.title}`;
-      const prBody = `This PR addresses issue #${issueInfo.number}\n\n${issueInfo.body || ''}`;
+      const prBody = `This PR addresses issue #${issueInfo.number}\n\n${
+        issueInfo.body || ""
+      }`;
 
       const prNumber = await createPullRequest(octokit, {
         owner: repoInfo.owner,
@@ -186,13 +218,16 @@ ${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`
         `🤖 I've created a pull request #${prNumber} with proposed changes for this issue.`
       );
 
-      console.log(`Successfully created PR #${prNumber} for issue #${issueInfo.number}`);
+      console.log(
+        `Successfully created PR #${prNumber} for issue #${issueInfo.number}`
+      );
     } catch (error) {
-      console.error('Error processing issue:', error);
+      console.error("Error processing issue:", error);
 
       // Post error comment to the issue
       try {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
         await addIssueComment(
           octokit,
           repoInfo.owner,
@@ -201,7 +236,7 @@ ${commandOutput.stderr ? `**Error output:**\n\`\`\`\n${commandOutput.stderr}\n\`
           `🤖❌ Error: I encountered a problem while processing this issue:\n\n\`\`\`\n${errorMessage}\n\`\`\`\n\nPlease check the logs for more details.`
         );
       } catch (commentError) {
-        console.error('Failed to post error comment to issue:', commentError);
+        console.error("Failed to post error comment to issue:", commentError);
       }
 
       throw error; // Re-throw for top-level error handling
