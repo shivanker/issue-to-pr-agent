@@ -1,8 +1,12 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { IssueInfo, ChangeResult } from './types';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 const execPromise = promisify(exec);
+const writeFilePromise = promisify(fs.writeFile);
 
 /**
  * Parses issue body to extract structured information
@@ -74,9 +78,16 @@ ${parsedInfo.changes ? `Changes needed: ${parsedInfo.changes}` : ''}
 Please implement the necessary changes to address this issue. Focus on high quality implementation that follows best practices.
 `.trim();
 
+  // Create a temporary file for the message
+  const tempFilePath = path.join(os.tmpdir(), `aider-message-${Date.now()}.txt`);
+
   try {
-    // Run aider command to implement changes
-    const aiderCommand = `cd "${repoPath}" && aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message "${structuredMessage.replace(/"/g, '\\"')}"`;
+    // Write the message to the temporary file
+    await writeFilePromise(tempFilePath, structuredMessage);
+    console.log(`Message written to temporary file: ${tempFilePath}`);
+
+    // Run aider command to implement changes with message-file
+    const aiderCommand = `cd "${repoPath}" && aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message-file "${tempFilePath}"`;
 
     console.log(`Running aider command: ${aiderCommand}`);
 
