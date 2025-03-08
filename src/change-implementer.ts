@@ -97,7 +97,7 @@ Please implement the necessary changes to address this issue. Focus on high qual
     console.log(`Message written to temporary file: ${tempFilePath}`);
 
     // Run aider command to implement changes with message-file
-    const aiderCommand = `cd "${repoPath}" && /root/.local/bin/aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message-file "${tempFilePath}"`;
+    const aiderCommand = `cd "${repoPath}" && /opt/bin/aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message-file "${tempFilePath}"`;
 
     console.log(`Running aider command: ${aiderCommand}`);
 
