@@ -1,9 +1,11 @@
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import { promisify } from "util";
-import { IssueInfo, ChangeResult } from "./types";
+import { IssueInfo, ChangeResult, RepoInfo } from "./types";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { Octokit } from "@octokit/rest";
+import { addIssueComment } from "./github";
 
 const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
@@ -42,11 +44,15 @@ export function parseIssueBody(body: string | null): Record<string, string> {
  *
  * @param repoPath Path to the cloned repository
  * @param issueInfo Information about the issue that triggered the changes
+ * @param repoInfo Optional repository information
+ * @param octokit Optional Octokit instance for GitHub API
  * @returns ChangeResult with array of paths to files that were modified and command output
  */
 export async function defaultChangeImplementer(
   repoPath: string,
-  issueInfo: IssueInfo
+  issueInfo: IssueInfo,
+  repoInfo?: RepoInfo,
+  octokit?: Octokit
 ): Promise<ChangeResult> {
   console.log(
     `Implementing changes for issue #${issueInfo.number} in ${repoPath}`
@@ -97,19 +103,122 @@ Please implement the necessary changes to address this issue. Focus on high qual
     console.log(`Message written to temporary file: ${tempFilePath}`);
 
     // Run aider command to implement changes with message-file
-    const aiderCommand = `cd "${repoPath}" && /opt/bin/.local/bin/aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message-file "${tempFilePath}"`;
+    const aiderCommand = `/opt/bin/.local/bin/aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message-file "${tempFilePath}"`;
 
     console.log(`Running aider command: ${aiderCommand}`);
 
-    const { stdout, stderr } = await execPromise(aiderCommand);
-    console.log("Aider command output:", stdout);
+    const executeWithStreaming = (
+      command: string
+    ): Promise<{ stdout: string; stderr: string }> => {
+      return new Promise((resolve, reject) => {
+        const proc = spawn(command, {
+          shell: true,
+          cwd: repoPath, // Set working directory here
+        });
 
-    // Save the command output
+        let stdoutData = "";
+        let stderrData = "";
+        let lastLogTime = Date.now();
+        const LOG_INTERVAL = 45000;
+
+        // Function to post a combined update to the issue
+        const postCombinedUpdate = async () => {
+          if (
+            Date.now() - lastLogTime > LOG_INTERVAL &&
+            octokit &&
+            repoInfo &&
+            issueInfo
+          ) {
+            try {
+              const hasStdout = stdoutData.trim().length > 0;
+              const hasStderr = stderrData.trim().length > 0;
+
+              let commentBody = `🔄 **Progress Update for Issue #${issueInfo.number}**\n\n`;
+
+              // Add stdout section if there's output
+              if (hasStdout) {
+                commentBody +=
+                  `<details>\n` +
+                  `<summary>Standard Output (click to expand full log)</summary>\n\n` +
+                  `\`\`\`\n${stdoutData}\n\`\`\`\n` +
+                  `</details>\n\n` +
+                  `**Recent output:** \`${stdoutData.substring(
+                    Math.max(0, stdoutData.length - 200)
+                  )}\`\n\n`;
+              }
+
+              // Add stderr section if there's output
+              if (hasStderr) {
+                commentBody +=
+                  `<details>\n` +
+                  `<summary>⚠️ Error Output (click to expand full log)</summary>\n\n` +
+                  `\`\`\`\n${stderrData}\n\`\`\`\n` +
+                  `</details>\n\n` +
+                  `**Recent error output:** \`${stderrData.substring(
+                    Math.max(0, stderrData.length - 200)
+                  )}\`\n\n`;
+              }
+
+              await addIssueComment(
+                octokit,
+                repoInfo.owner,
+                repoInfo.repo,
+                issueInfo.number,
+                commentBody
+              );
+              console.log("Posted combined progress update to issue");
+            } catch (error) {
+              console.error(
+                "Failed to post combined progress comment to issue:",
+                error
+              );
+            }
+            lastLogTime = Date.now();
+          }
+        };
+
+        proc.stdout.on("data", async (data) => {
+          const chunk = data.toString();
+          stdoutData += chunk;
+          console.log("Command output:", chunk.substring(chunk.length - 200));
+          await postCombinedUpdate();
+        });
+
+        proc.stderr.on("data", async (data) => {
+          const chunk = data.toString();
+          stderrData += chunk;
+          console.error(
+            "Command error output:",
+            chunk.substring(chunk.length - 200)
+          );
+          await postCombinedUpdate();
+        });
+
+        proc.on("close", (code) => {
+          if (code !== 0) {
+            const error = new Error(`Command exited with code ${code}`);
+            (error as any).stdout = stdoutData;
+            (error as any).stderr = stderrData;
+            reject(error);
+          } else {
+            resolve({ stdout: stdoutData, stderr: stderrData });
+          }
+        });
+
+        proc.on("error", (error) => {
+          (error as any).stdout = stdoutData;
+          (error as any).stderr = stderrData;
+          reject(error);
+        });
+      });
+    };
+
+    // For the long-running aiderCommand, use the streaming version
+    const { stdout, stderr } = await executeWithStreaming(aiderCommand);
     commandOutput = { stdout, stderr };
 
-    if (stderr) {
-      console.error("Aider command stderr:", stderr);
-    }
+    console.log("Aider command stdout:", stdout);
+    console.log("Aider command stderr:", stderr);
   } catch (error) {
     // Capture any error from the aider command, but still try to collect changed files
     // and include the error in the result's output

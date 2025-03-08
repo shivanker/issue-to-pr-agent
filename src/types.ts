@@ -1,4 +1,4 @@
-import type { WebhookEvent } from '@octokit/webhooks-types';
+import type { WebhookEvent } from "@octokit/webhooks-types";
 
 /**
  * Interface for the Lambda function event
@@ -61,7 +61,7 @@ export type GitHubEvent = WebhookEvent;
 /**
  * Interface for GitHub issue event
  */
-export type IssuesEvent = WebhookEvent & { action: 'opened' };
+export type IssuesEvent = WebhookEvent & { action: "opened" };
 
 /**
  * Result from a change implementation operation
@@ -77,4 +77,9 @@ export interface ChangeResult {
 /**
  * Interface for a function that implements repository changes
  */
-export type ChangeImplementer = (repoPath: string, issueInfo: IssueInfo) => Promise<ChangeResult>;
+export type ChangeImplementer = (
+  repoPath: string,
+  issueInfo: IssueInfo,
+  repoInfo?: RepoInfo,
+  octokit?: any
+) => Promise<ChangeResult>;
