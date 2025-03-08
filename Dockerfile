@@ -9,13 +9,16 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 # Copy package files
 COPY package.json package-lock.json ./
 
+# Fool aider into installing in /opt/bin/.local/bin
+RUN mkdir -p /opt/bin/.local/bin
+ENV HOME="/opt/bin"
 # Install Aider in a location accessible to Lambda execution user
 RUN curl -LsSf https://aider.chat/install.sh | sh
 # Move aider from root's directory to a location accessible by Lambda user
-RUN mkdir -p /opt/bin && cp /root/.local/bin/aider /opt/bin/aider
 # Make sure it's executable by all users
-RUN chmod 755 /opt/bin/aider
-ENV PATH="/opt/bin:${PATH}"
+RUN chmod -R 755 /opt/bin/.local
+ENV PATH="/opt/bin/.local/bin:${PATH}"
+ENV HOME="/root"
 
 # Copy source code
 COPY tsconfig.json ./
