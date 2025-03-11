@@ -20,6 +20,10 @@ RUN chmod -R 755 /opt/bin/.local
 ENV PATH="/opt/bin/.local/bin:${PATH}"
 ENV HOME="/root"
 
+# Some other paths that aider uses
+RUN chmod 644 /root/.env
+RUN chmod 777 /root/.aider
+
 # Copy source code
 COPY tsconfig.json ./
 COPY src/ ./src/
