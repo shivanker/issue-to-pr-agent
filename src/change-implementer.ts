@@ -113,8 +113,21 @@ Please implement the necessary changes to address this issue. Focus on high qual
       return new Promise((resolve, reject) => {
         const proc = spawn(command, {
           shell: true,
-          cwd: repoPath, // Set working directory here
+          cwd: repoPath,
+          stdio: ["pipe", "pipe", "pipe"], // stdin, stdout, stderr
         });
+
+        // Provide automatic 'y' responses to any prompts
+        if (proc.stdin) {
+          // Write 'y' + enter periodically to answer any prompts that might appear
+          const autoResponder = setInterval(() => {
+            proc.stdin?.write("y\n");
+          }, 5000); // Check every 5 seconds
+
+          // Clean up interval when process ends
+          proc.on("close", () => clearInterval(autoResponder));
+          proc.on("error", () => clearInterval(autoResponder));
+        }
 
         let stdoutData = "";
         let stderrData = "";
