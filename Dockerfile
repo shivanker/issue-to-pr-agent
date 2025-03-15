@@ -3,21 +3,14 @@ FROM public.ecr.aws/lambda/nodejs:22
 # Install packages
 RUN dnf install -y git tar gcc gcc-c++ make
 
-# Create app directory
-WORKDIR ${LAMBDA_TASK_ROOT}
-
-# Copy package files
-COPY package.json package-lock.json ./
+# Create symbolic links for compilers that Aider's dependencies expect
+RUN ln -sf /usr/bin/aarch64-amazon-linux-gcc /usr/bin/aarch64-linux-gnu-gcc
+RUN ln -sf /usr/bin/aarch64-amazon-linux-g++ /usr/bin/aarch64-linux-gnu-g++
 
 # Fool aider into installing in /opt/bin/.local/bin
 RUN mkdir -p /opt/bin/.local/bin
 ENV HOME="/opt/bin"
 # Install Aider in a location accessible to Lambda execution user
-
-# Create symbolic links for compilers that Aider's dependencies expect
-RUN ln -sf /usr/bin/aarch64-amazon-linux-gcc /usr/bin/aarch64-linux-gnu-gcc
-RUN ln -sf /usr/bin/aarch64-amazon-linux-g++ /usr/bin/aarch64-linux-gnu-g++
-
 RUN curl -LsSf https://aider.chat/install.sh | sh
 # Move aider from root's directory to a location accessible by Lambda user
 # Make sure it's executable by all users
@@ -30,6 +23,12 @@ RUN mkdir -p /root/.aider
 RUN touch /root/.env
 RUN chmod 644 /root/.env
 RUN chmod 777 /root/.aider
+
+# Create app directory
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Copy package files
+COPY package.json package-lock.json ./
 
 # Copy source code
 COPY tsconfig.json ./
