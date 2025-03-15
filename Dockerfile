@@ -1,7 +1,7 @@
 FROM public.ecr.aws/lambda/nodejs:22
 
 # Install packages
-RUN dnf install -y git tar gcc gcc-c++ make python3-devel
+RUN dnf install -y git tar gcc gcc-c++ make
 
 # Create app directory
 WORKDIR ${LAMBDA_TASK_ROOT}
