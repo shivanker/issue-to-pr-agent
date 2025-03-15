@@ -40,7 +40,7 @@ case "$1" in
 
   container)
     echo "Building and running container..."
-    docker build -t project-sensei-local .
+    docker buildx build --platform linux/arm64 -t project-sensei-local .
 
     # Stop container if already running
     docker stop project-sensei-local 2>/dev/null || true
@@ -81,7 +81,7 @@ EOF
 
   debug)
     echo "Starting interactive shell in container..."
-    docker build -t project-sensei-local .
+    docker buildx build --platform linux/arm64 -t project-sensei-local .
     docker run -it --rm --entrypoint /bin/bash $ENV_FLAG project-sensei-local
     ;;
 
