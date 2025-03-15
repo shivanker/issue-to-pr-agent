@@ -1,7 +1,7 @@
 FROM public.ecr.aws/lambda/nodejs:22
 
 # Install packages
-RUN dnf install -y git tar
+RUN dnf install -y git tar gcc gcc-c++ make python3-devel
 
 # Create app directory
 WORKDIR ${LAMBDA_TASK_ROOT}
@@ -13,6 +13,11 @@ COPY package.json package-lock.json ./
 RUN mkdir -p /opt/bin/.local/bin
 ENV HOME="/opt/bin"
 # Install Aider in a location accessible to Lambda execution user
+
+# Create symbolic links for compilers that Aider's dependencies expect
+RUN ln -sf /usr/bin/aarch64-amazon-linux-gcc /usr/bin/aarch64-linux-gnu-gcc
+RUN ln -sf /usr/bin/aarch64-amazon-linux-g++ /usr/bin/aarch64-linux-gnu-g++
+
 RUN curl -LsSf https://aider.chat/install.sh | sh
 # Move aider from root's directory to a location accessible by Lambda user
 # Make sure it's executable by all users
