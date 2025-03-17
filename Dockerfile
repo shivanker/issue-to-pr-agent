@@ -14,15 +14,16 @@ ENV HOME="/opt/bin"
 RUN curl -LsSf https://aider.chat/install.sh | sh
 # Move aider from root's directory to a location accessible by Lambda user
 # Make sure it's executable by all users
-RUN chmod -R 755 /opt/bin/.local
+RUN chmod -R 777 /opt/bin/.local
 ENV PATH="/opt/bin/.local/bin:${PATH}"
 ENV HOME="/root"
 
 # Some other paths that aider uses
 RUN mkdir -p /root/.aider
 RUN touch /root/.env
+RUN chmod 777 /root
 RUN chmod 644 /root/.env
-RUN chmod 777 /root/.aider
+RUN chmod -R 777 /root/.aider
 
 # Create app directory
 WORKDIR ${LAMBDA_TASK_ROOT}
