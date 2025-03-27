@@ -13,10 +13,8 @@ ENV HOME="/opt/bin"
 # Install Aider in a location accessible to Lambda execution user
 RUN curl -LsSf https://aider.chat/install.sh | sh
 # Move aider from root's directory to a location accessible by Lambda user
-# Make sure it's executable by all users
-RUN chmod -R 777 /opt/bin/.local
 ENV PATH="/opt/bin/.local/bin:${PATH}"
-# ENV HOME="/root"
+ENV HOME="/root"
 
 
 # Create app directory
@@ -28,15 +26,14 @@ COPY package.json package-lock.json ./
 # Copy source code
 COPY tsconfig.json ./
 COPY src/ ./src/
-COPY aider-config/ /root/
 COPY aider-config/ /opt/bin/
 
 # Some other paths that aider uses
-RUN mkdir -p /root/.aider /opt/bin/.aider
-RUN touch /root/.env /opt/bin/.env
-RUN chmod 777 /root
-RUN chmod 644 /root/.env /opt/bin/.env
-RUN chmod -R 777 /root/.aider /opt/bin/.aider
+RUN mkdir -p /opt/bin/.aider
+RUN touch /opt/bin/.env
+
+# Make sure the whole installation dir is executable by all users
+RUN chmod -R 777 /opt/bin/
 
 # Install all dependencies (including dev)
 RUN npm ci

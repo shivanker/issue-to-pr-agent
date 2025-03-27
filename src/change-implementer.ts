@@ -1,11 +1,12 @@
+import { addIssueComment } from "./github";
+import { config } from "./config";
 import { exec, spawn } from "child_process";
-import { promisify } from "util";
 import { IssueInfo, ChangeResult, RepoInfo } from "./types";
+import { Octokit } from "@octokit/rest";
+import { promisify } from "util";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { Octokit } from "@octokit/rest";
-import { addIssueComment } from "./github";
 
 const execPromise = promisify(exec);
 const writeFilePromise = promisify(fs.writeFile);
@@ -102,8 +103,14 @@ Please implement the necessary changes to address this issue. Focus on high qual
     await writeFilePromise(tempFilePath, structuredMessage);
     console.log(`Message written to temporary file: ${tempFilePath}`);
 
+    // Copy the aider binary to the aiderHome directory
+    if (!fs.existsSync(config.app.aiderHome)) {
+      fs.mkdirSync(config.app.aiderHome, { recursive: true });
+      fs.cpSync("/opt/bin", config.app.aiderHome, { recursive: true });
+    }
+
     // Run aider command to implement changes with message-file
-    const aiderCommand = `/opt/bin/.local/bin/aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message-file "${tempFilePath}"`;
+    const aiderCommand = `${config.app.aiderHome}/.local/bin/aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message-file "${tempFilePath}"`;
 
     console.log(`Running aider command: ${aiderCommand}`);
 
@@ -115,7 +122,11 @@ Please implement the necessary changes to address this issue. Focus on high qual
           shell: true,
           cwd: repoPath,
           stdio: ["pipe", "pipe", "pipe"], // stdin, stdout, stderr
-          env: { ...process.env, HOME: "/opt/bin" },
+          env: {
+            ...process.env,
+            HOME: config.app.aiderHome,
+            PATH: `${config.app.aiderHome}/.local/bin:${process.env.PATH}`,
+          },
         });
 
         // Provide automatic 'y' responses to any prompts
