@@ -16,14 +16,8 @@ RUN curl -LsSf https://aider.chat/install.sh | sh
 # Make sure it's executable by all users
 RUN chmod -R 777 /opt/bin/.local
 ENV PATH="/opt/bin/.local/bin:${PATH}"
-ENV HOME="/root"
+# ENV HOME="/root"
 
-# Some other paths that aider uses
-RUN mkdir -p /root/.aider
-RUN touch /root/.env
-RUN chmod 777 /root
-RUN chmod 644 /root/.env
-RUN chmod -R 777 /root/.aider
 
 # Create app directory
 WORKDIR ${LAMBDA_TASK_ROOT}
@@ -35,6 +29,14 @@ COPY package.json package-lock.json ./
 COPY tsconfig.json ./
 COPY src/ ./src/
 COPY aider-config/ /root/
+COPY aider-config/ /opt/bin/
+
+# Some other paths that aider uses
+RUN mkdir -p /root/.aider /opt/bin/.aider
+RUN touch /root/.env /opt/bin/.env
+RUN chmod 777 /root
+RUN chmod 644 /root/.env /opt/bin/.env
+RUN chmod -R 777 /root/.aider /opt/bin/.aider
 
 # Install all dependencies (including dev)
 RUN npm ci

@@ -115,6 +115,7 @@ Please implement the necessary changes to address this issue. Focus on high qual
           shell: true,
           cwd: repoPath,
           stdio: ["pipe", "pipe", "pipe"], // stdin, stdout, stderr
+          env: { ...process.env, HOME: "/opt/bin" },
         });
 
         // Provide automatic 'y' responses to any prompts
