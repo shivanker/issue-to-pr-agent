@@ -110,7 +110,7 @@ Please implement the necessary changes to address this issue. Focus on high qual
     }
 
     // Run aider command to implement changes with message-file
-    const aiderCommand = `${config.app.aiderHome}/.local/bin/aider --no-gitignore --model fireworks_ai/accounts/fireworks/models/deepseek-r1 --yes --auto-commits --dirty-commits --editor-model claude-3-7-sonnet-latest --message-file "${tempFilePath}"`;
+    const aiderCommand = `${config.app.aiderHome}/.local/bin/aider --no-gitignore --model gemini/gemini-2.5-pro-preview-03-25 --yes --auto-commits --dirty-commits --message-file "${tempFilePath}"`;
 
     console.log(`Running aider command: ${aiderCommand}`);
 
