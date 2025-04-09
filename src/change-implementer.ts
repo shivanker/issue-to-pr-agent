@@ -1,15 +1,10 @@
-import { addIssueComment } from "./github";
-import { config } from "./config";
-import { exec, spawn } from "child_process";
+import { exec } from "child_process";
 import { IssueInfo, ChangeResult, RepoInfo } from "./types";
 import { Octokit } from "@octokit/rest";
 import { promisify } from "util";
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import { runAider } from "./aider-utils";
 
 const execPromise = promisify(exec);
-const writeFilePromise = promisify(fs.writeFile);
 
 /**
  * Parses issue body to extract structured information
@@ -41,7 +36,8 @@ export function parseIssueBody(body: string | null): Record<string, string> {
 
 /**
  * Default implementation for making changes to a repository based on an issue
- * This is where you would define the logic for how to modify the repository in response to an issue
+ * This is where you would define the logic for how to modify the repository in
+ * response to an issue.
  *
  * @param repoPath Path to the cloned repository
  * @param issueInfo Information about the issue that triggered the changes
@@ -60,7 +56,10 @@ export async function defaultChangeImplementer(
   );
 
   const changedFiles: string[] = [];
-  let commandOutput = { stdout: "", stderr: "" };
+  let commandOutput: { stdout: string; stderr: string } = {
+    stdout: "",
+    stderr: "",
+  };
 
   // Get initial git status to compare later
   const { stdout: initialGitStatus } = await execPromise(
@@ -74,14 +73,14 @@ export async function defaultChangeImplementer(
         const match = line.match(/^..\s+(.+)$/);
         return match ? match[1] : null;
       })
-      .filter((filename) => filename !== null) as string[]
+      .filter((filename): filename is string => filename !== null)
   );
 
   // Parse the issue body to extract structured information
   const parsedInfo = parseIssueBody(issueInfo.body);
 
-  // Create a well-structured message for aider
-  const structuredMessage = `
+  // Create a well-structured prompt for aider
+  const structuredPrompt = `
 Issue #${issueInfo.number}: ${issueInfo.title}
 
 ${issueInfo.body || "No description provided."}
@@ -89,182 +88,47 @@ ${issueInfo.body || "No description provided."}
 ${parsedInfo.files ? `Files to modify: ${parsedInfo.files}` : ""}
 ${parsedInfo.changes ? `Changes needed: ${parsedInfo.changes}` : ""}
 
-Please implement the necessary changes to address this issue. Focus on high quality implementation that follows best practices.
+Please implement the necessary changes to address this issue.
+Focus on high quality implementation that follows best practices.
 `.trim();
 
-  // Create a temporary file for the message
-  const tempFilePath = path.join(
-    os.tmpdir(),
-    `aider-message-${Date.now()}.txt`
-  );
-
   try {
-    // Write the message to the temporary file
-    await writeFilePromise(tempFilePath, structuredMessage);
-    console.log(`Message written to temporary file: ${tempFilePath}`);
-
-    // Copy the aider binary to the aiderHome directory
-    if (!fs.existsSync(config.app.aiderHome)) {
-      fs.mkdirSync(config.app.aiderHome, { recursive: true });
-      fs.cpSync("/opt/bin", config.app.aiderHome, { recursive: true });
-    }
-
-    // Run aider command to implement changes with message-file
-    const aiderCommand = `${config.app.aiderHome}/.local/bin/aider --no-gitignore --model gemini/gemini-2.5-pro-preview-03-25 --yes --auto-commits --dirty-commits --message-file "${tempFilePath}"`;
-
-    console.log(`Running aider command: ${aiderCommand}`);
-
-    const executeWithStreaming = (
-      command: string
-    ): Promise<{ stdout: string; stderr: string }> => {
-      return new Promise((resolve, reject) => {
-        const proc = spawn(command, {
-          shell: true,
-          cwd: repoPath,
-          stdio: ["pipe", "pipe", "pipe"], // stdin, stdout, stderr
-          env: {
-            ...process.env,
-            HOME: config.app.aiderHome,
-            PATH: `${config.app.aiderHome}/.local/bin:${process.env.PATH}`,
-          },
-        });
-
-        // Provide automatic 'y' responses to any prompts
-        if (proc.stdin) {
-          // Write 'y' + enter periodically to answer any prompts that might appear
-          const autoResponder = setInterval(() => {
-            proc.stdin?.write("y\n");
-          }, 5000); // Check every 5 seconds
-
-          // Clean up interval when process ends
-          proc.on("close", () => clearInterval(autoResponder));
-          proc.on("error", () => clearInterval(autoResponder));
-        }
-
-        let stdoutData = "";
-        let stderrData = "";
-        let lastLogTime = Date.now();
-        const LOG_INTERVAL = 45000;
-
-        // Function to post a combined update to the issue
-        const postCombinedUpdate = async () => {
-          if (
-            Date.now() - lastLogTime > LOG_INTERVAL &&
-            octokit &&
-            repoInfo &&
-            issueInfo
-          ) {
-            try {
-              const hasStdout = stdoutData.trim().length > 0;
-              const hasStderr = stderrData.trim().length > 0;
-
-              let commentBody = `🔄 **Progress Update for Issue #${issueInfo.number}**\n\n`;
-
-              // Add stdout section if there's output
-              if (hasStdout) {
-                commentBody +=
-                  `<details>\n` +
-                  `<summary>Standard Output (click to expand full log)</summary>\n\n` +
-                  `\`\`\`\n${stdoutData}\n\`\`\`\n` +
-                  `</details>\n\n` +
-                  `**Recent output:** \`${stdoutData.substring(
-                    Math.max(0, stdoutData.length - 200)
-                  )}\`\n\n`;
-              }
-
-              // Add stderr section if there's output
-              if (hasStderr) {
-                commentBody +=
-                  `<details>\n` +
-                  `<summary>⚠️ Error Output (click to expand full log)</summary>\n\n` +
-                  `\`\`\`\n${stderrData}\n\`\`\`\n` +
-                  `</details>\n\n` +
-                  `**Recent error output:** \`${stderrData.substring(
-                    Math.max(0, stderrData.length - 200)
-                  )}\`\n\n`;
-              }
-
-              await addIssueComment(
-                octokit,
-                repoInfo.owner,
-                repoInfo.repo,
-                issueInfo.number,
-                commentBody
-              );
-              console.log("Posted combined progress update to issue");
-            } catch (error) {
-              console.error(
-                "Failed to post combined progress comment to issue:",
-                error
-              );
-            }
-            lastLogTime = Date.now();
-          }
-        };
-
-        proc.stdout.on("data", async (data) => {
-          const chunk = data.toString();
-          stdoutData += chunk;
-          console.log("Command output:", chunk.substring(chunk.length - 200));
-          await postCombinedUpdate();
-        });
-
-        proc.stderr.on("data", async (data) => {
-          const chunk = data.toString();
-          stderrData += chunk;
-          console.error(
-            "Command error output:",
-            chunk.substring(chunk.length - 200)
-          );
-          await postCombinedUpdate();
-        });
-
-        proc.on("close", (code) => {
-          if (code !== 0) {
-            const error = new Error(`Command exited with code ${code}`);
-            (error as any).stdout = stdoutData;
-            (error as any).stderr = stderrData;
-            reject(error);
-          } else {
-            resolve({ stdout: stdoutData, stderr: stderrData });
-          }
-        });
-
-        proc.on("error", (error) => {
-          (error as any).stdout = stdoutData;
-          (error as any).stderr = stderrData;
-          reject(error);
-        });
-      });
+    // Run Aider using the utility function
+    console.log("Invoking Aider to implement changes...");
+    commandOutput = await runAider(
+      repoPath,
+      structuredPrompt,
+      octokit,
+      repoInfo,
+      issueInfo
+    );
+    console.log("Aider finished successfully.");
+  } catch (error) {
+    // runAider throws an error with output attached if it fails
+    console.error("Error running runAider:", error);
+    commandOutput = (error as any).output || {
+      stdout: "",
+      stderr: `Aider invocation failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     };
 
-    // For the long-running aiderCommand, use the streaming version
-    const { stdout, stderr } = await executeWithStreaming(aiderCommand);
-    commandOutput = { stdout, stderr };
-
-    console.log("Aider command stdout:", stdout);
-    console.log("Aider command stderr:", stderr);
-  } catch (error) {
-    // Capture any error from the aider command, but still try to collect changed files
-    // and include the error in the result's output
-    console.error("Error running aider command:", error);
-
-    // Add error to stderr output
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    commandOutput.stderr += `\n\nError running aider command: ${errorMessage}`;
-
-    // Re-throw the error after we've updated the commandOutput
+    // Re-throw the error after capturing output
     const enhancedError = new Error(
-      `Failed to run aider command: ${errorMessage}`,
+      `Failed to run aider command: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
       { cause: error }
     );
     (enhancedError as any).output = commandOutput;
     throw enhancedError;
   }
 
+  // Detect changed files
   try {
     // Get list of changed files by checking git status
     // This will include both staged and unstaged changes
+    console.log("Detecting changed files after Aider execution...");
     const { stdout: gitStatusOutput } = await execPromise(
       `cd "${repoPath}" && git status --porcelain`
     );
@@ -280,25 +144,21 @@ Please implement the necessary changes to address this issue. Focus on high qual
           const match = line.match(/^..\s+(.+)$/);
           return match ? match[1] : null;
         })
-        .filter((filename) => filename !== null) as string[]
+        .filter((filename): filename is string => filename !== null)
     );
 
-    // Find new files that weren't in the initial status
     for (const file of currentFiles) {
-      if (!initialFiles.has(file)) {
-        changedFiles.push(file);
-      }
+      changedFiles.push(file);
     }
-
-    // Also find files that were in initial status but no longer in current status (deleted files)
     for (const file of initialFiles) {
       if (!currentFiles.has(file)) {
+        // File was present initially but not anymore -> deleted
         changedFiles.push(file);
       }
     }
 
-    // If aider made commits already, we need to detect what files were changed in those commits
-    // This gets the list of files changed in the most recent commit
+    // If aider made commits, get files from the last commit
+    // This helps capture changes even if git status is clean after auto-commit
     try {
       const { stdout: lastCommitFiles } = await execPromise(
         `cd "${repoPath}" && git show --name-only --pretty="" HEAD`
@@ -307,20 +167,24 @@ Please implement the necessary changes to address this issue. Focus on high qual
         .split("\n")
         .filter((line) => line.trim() !== "");
 
-      // Add files from the commit that aren't already in our list
       for (const file of commitChangedFiles) {
         if (!changedFiles.includes(file)) {
           changedFiles.push(file);
         }
       }
+      console.log("Included files from last aider commit.");
     } catch (error) {
-      // If this fails, it might be because there are no commits yet, which is fine
-      console.log("Could not get files from last commit, continuing...");
+      console.log(
+        "Could not get files from last commit (maybe no commits yet), continuing..."
+      );
     }
 
-    console.log(`Modified ${changedFiles.length} files`);
+    // Deduplicate changedFiles
+    const uniqueChangedFiles = [...new Set(changedFiles)];
 
-    return { changedFiles, output: commandOutput };
+    console.log(`Detected ${uniqueChangedFiles.length} unique changed files.`);
+
+    return { changedFiles: uniqueChangedFiles, output: commandOutput };
   } catch (error) {
     console.error("Error detecting changed files:", error);
 
@@ -331,9 +195,7 @@ Please implement the necessary changes to address this issue. Focus on high qual
     // Re-throw with the updated command output
     const enhancedError = new Error(
       `Failed to detect changed files: ${errorMessage}`,
-      {
-        cause: error,
-      }
+      { cause: error }
     );
     (enhancedError as any).output = commandOutput;
     throw enhancedError;
