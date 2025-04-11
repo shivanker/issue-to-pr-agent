@@ -1,16 +1,20 @@
-import { Octokit } from '@octokit/rest';
-import { createAppAuth } from '@octokit/auth-app';
-import { config } from './config';
+import { Octokit } from "@octokit/rest";
+import { createAppAuth } from "@octokit/auth-app";
+import { config } from "./config";
 import type {
   RepoInfo,
   IssueInfo,
-  PullRequestOptions
-} from './types';
+  PullRequestOptions,
+  PrReviewInfo,
+  ReviewCommentInfo,
+} from "./types";
 
 /**
  * Creates an authenticated Octokit instance using GitHub App credentials
  */
-export async function createOctokitApp(installationId?: number): Promise<Octokit> {
+export async function createOctokitApp(
+  installationId?: number
+): Promise<Octokit> {
   const authOptions: any = {
     appId: config.github.appId,
     privateKey: config.github.privateKey,
@@ -114,6 +118,105 @@ export async function addIssueComment(
     owner,
     repo,
     issue_number: issueNumber,
+    body,
+  });
+}
+
+/**
+ * Gets pull request information from a GitHub event
+ */
+export function getPrInfoFromPayload(payload: any): {
+  prNumber: number;
+  branch: string;
+  base: string;
+} {
+  return {
+    prNumber: payload.pull_request.number,
+    branch: payload.pull_request.head.ref,
+    base: payload.pull_request.base.ref,
+  };
+}
+
+/**
+ * Gets pull request review comments
+ */
+export async function getPrReviewComments(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<ReviewCommentInfo[]> {
+  // Get all review comments
+  const { data: reviewComments } = await octokit.pulls.listReviewComments({
+    owner,
+    repo,
+    pull_number: prNumber,
+  });
+
+  return reviewComments.map((comment) => ({
+    id: comment.id,
+    body: comment.body,
+    path: comment.path,
+    line: comment.line,
+    position: comment.position,
+    committish: comment.commit_id,
+  }));
+}
+
+/**
+ * Gets pull request review information
+ */
+export async function getPrReviewInfo(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<PrReviewInfo> {
+  // Get PR details
+  const { data: pr } = await octokit.pulls.get({
+    owner,
+    repo,
+    pull_number: prNumber,
+  });
+
+  // Get review comments
+  const reviews = await getPrReviewComments(octokit, owner, repo, prNumber);
+
+  return {
+    prNumber,
+    prTitle: pr.title,
+    prBody: pr.body,
+    reviews,
+    branch: pr.head.ref,
+    base: pr.base.ref,
+  };
+}
+
+/**
+ * Gets PR information from a review comment payload
+ */
+export function getPrInfoFromReviewPayload(payload: any): {
+  prNumber: number;
+} {
+  return {
+    prNumber: payload.pull_request.number,
+  };
+}
+
+/**
+ * Adds a comment to a pull request
+ */
+export async function addPrComment(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  body: string
+): Promise<void> {
+  await octokit.issues.createComment({
+    owner,
+    repo,
+    issue_number: prNumber,
     body,
   });
 }

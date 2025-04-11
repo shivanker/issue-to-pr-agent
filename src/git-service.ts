@@ -3,7 +3,13 @@ import path from "path";
 import simpleGit, { SimpleGit } from "simple-git";
 import { Octokit } from "@octokit/rest";
 import { config } from "./config";
-import { RepoInfo, IssueInfo, ChangeImplementer } from "./types";
+import {
+  RepoInfo,
+  IssueInfo,
+  ChangeImplementer,
+  PrReviewInfo,
+  PrReviewChangeImplementer,
+} from "./types";
 
 /**
  * Service for Git operations
@@ -193,5 +199,66 @@ export class GitService {
    */
   getBranchName(): string {
     return this.branchName;
+  }
+
+  /**
+   * Configures git for PR updates
+   * @param prInfo Information about the PR
+   */
+  configurePrBranch(prInfo: PrReviewInfo): void {
+    // Save the PR branch name
+    this.branchName = prInfo.branch;
+  }
+
+  /**
+   * Checks out an existing branch for PR updates
+   */
+  async checkoutPrBranch(): Promise<string> {
+    console.log(`Checking out PR branch ${this.branchName}`);
+
+    // Checkout the PR branch
+    await this.git.checkout(this.branchName);
+
+    return this.branchName;
+  }
+
+  /**
+   * Updates an existing pull request with new changes
+   */
+  async updatePrWithChanges(
+    implementer: PrReviewChangeImplementer,
+    prInfo: PrReviewInfo
+  ): Promise<{
+    changedFiles: string[];
+    commandOutput?: { stdout: string; stderr: string };
+  }> {
+    console.log(
+      `Updating PR #${prInfo.prNumber} with changes from review comments`
+    );
+
+    try {
+      // Use the provided change implementer to modify files
+      const result = await implementer(
+        this.repoDir,
+        prInfo,
+        this.repoInfo,
+        this.octokit
+      );
+
+      return {
+        changedFiles: result.changedFiles,
+        commandOutput: result.output,
+      };
+    } catch (error) {
+      // Store any command output that was generated before the error
+      if (error instanceof Error && "output" in error) {
+        (this as any).commandOutput = (error as any).output;
+      }
+      console.error(
+        `Error implementing changes for PR #${prInfo.prNumber} update:`,
+        error
+      );
+      throw error;
+    }
   }
 }

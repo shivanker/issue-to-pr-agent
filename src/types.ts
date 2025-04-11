@@ -83,3 +83,37 @@ export type ChangeImplementer = (
   repoInfo?: RepoInfo,
   octokit?: any
 ) => Promise<ChangeResult>;
+
+/**
+ * Interface for a function that implements pull request review changes
+ */
+export type PrReviewChangeImplementer = (
+  repoPath: string,
+  prInfo: PrReviewInfo,
+  repoInfo: RepoInfo,
+  octokit: any
+) => Promise<ChangeResult>;
+
+/**
+ * Interface for representing PR review information
+ */
+export interface PrReviewInfo {
+  prNumber: number;
+  prTitle: string;
+  prBody: string | null;
+  reviews: ReviewCommentInfo[];
+  branch: string;
+  base: string;
+}
+
+/**
+ * Interface for representing review comments
+ */
+export interface ReviewCommentInfo {
+  id: number;
+  body: string;
+  path?: string; // File path the comment is on
+  line?: number; // Line number the comment is on
+  position?: number; // Position in the diff
+  committish?: string; // The SHA of the commit the comment is on
+}
